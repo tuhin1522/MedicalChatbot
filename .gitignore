@@ -208,3 +208,14 @@ __marimo__/
 
 # Vector Database
 db/
+
+# Frontend - Node.js
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Process Management
+*.pid
+backend.log
+frontend.log
+
