@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 * {
@@ -6,29 +7,107 @@
   box-sizing: border-box;
 }
 
+/* Theme Variables */
+:root[data-theme="light"] {
+  --color-primary: 16 163 127;
+  --color-success: 16 163 127;
+  --color-base-100: 255 255 255;
+  --color-base-200: 247 247 248;
+  --color-base-300: 236 236 241;
+  --color-base-content: 0 0 0;
+  --color-border: 236 236 241;
+}
+
+:root[data-theme="dark"] {
+  --color-primary: 16 163 127;
+  --color-success: 16 163 127;
+  --color-base-100: 52 53 65;
+  --color-base-200: 64 65 79;
+  --color-base-300: 32 33 35;
+  --color-base-content: 236 236 241;
+  --color-border: 64 65 79;
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: rgb(var(--color-base-100));
+  color: rgb(var(--color-base-content));
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 10px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.3);
-  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.5);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Smooth animations */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.message-animation {
+  animation: slideInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.typing-indicator {
+  animation: pulse 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.chat-container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  max-width: 48rem;
 }

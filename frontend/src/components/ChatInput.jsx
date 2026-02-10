@@ -1,13 +1,18 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
-const ChatInput = ({ onSendMessage, disabled, darkMode }) => {
+const ChatInput = ({ onSendMessage, disabled, theme }) => {
     const [input, setInput] = useState('')
+    const textareaRef = useRef(null)
 
     const handleSubmit = (e) => {
         e.preventDefault()
         if (input.trim() && !disabled) {
             onSendMessage(input)
             setInput('')
+            // Reset textarea height
+            if (textareaRef.current) {
+                textareaRef.current.style.height = 'auto'
+            }
         }
     }
 
@@ -18,64 +23,69 @@ const ChatInput = ({ onSendMessage, disabled, darkMode }) => {
         }
     }
 
+    const handleInput = (e) => {
+        setInput(e.target.value)
+        // Auto-resize textarea
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto'
+            textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px'
+        }
+    }
+
     return (
-        <div className={`border-t px-6 py-4 transition-colors duration-300 ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
-            }`}>
-            <form onSubmit={handleSubmit} className="flex items-end space-x-3">
-                <div className="flex-1 relative">
-                    <textarea
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        placeholder="Type your medical question here..."
-                        disabled={disabled}
-                        rows="1"
-                        className={`w-full px-5 py-3.5 pr-12 border-2 rounded-2xl focus:outline-none focus:ring-2 resize-none transition-all duration-200 disabled:cursor-not-allowed text-base ${darkMode
-                                ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400 focus:border-indigo-400 focus:ring-indigo-500/30 disabled:bg-gray-800'
-                                : 'bg-white border-gray-200 text-gray-800 placeholder-gray-400 focus:border-indigo-500 focus:ring-indigo-200 disabled:bg-gray-50'
-                            }`}
-                        style={{
-                            minHeight: '52px',
-                            maxHeight: '120px'
-                        }}
-                        onInput={(e) => {
-                            e.target.style.height = '52px'
-                            e.target.style.height = e.target.scrollHeight + 'px'
-                        }}
-                        aria-label="Message input"
-                    />
-                </div>
-
-                <button
-                    type="submit"
-                    disabled={disabled || !input.trim()}
-                    className="flex-shrink-0 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white p-4 rounded-2xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                    aria-label="Send message"
-                    title="Send message (Enter)"
-                >
-                    <svg
-                        className="w-6 h-6"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+        <div className="sticky bottom-12 bg-base-100 pt-4 pb-8 mb-6">
+            <div className="chat-container">
+                <form onSubmit={handleSubmit} className="relative">
+                    <div className="relative flex items-center bg-base-200/50 border-2 border-base-300 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 focus-within:border-primary/50 focus-within:shadow-lg">
+                        <textarea
+                            ref={textareaRef}
+                            value={input}
+                            onChange={handleInput}
+                            onKeyPress={handleKeyPress}
+                            placeholder="Message Medical Assistant..."
+                            disabled={disabled}
+                            rows="1"
+                            className="w-full pl-5 pr-14 py-4 leading-6 bg-transparent  resize-none focus:outline-none text-[15px] text-base-content placeholder:text-base-content/50 placeholder:pl-0 disabled:cursor-not-allowed"
+                            style={{
+                                minHeight: '56px',
+                                maxHeight: '200px',
+                            }}
+                            aria-label="Message input"
                         />
-                    </svg>
-                </button>
-            </form>
 
-            <p className={`text-xs mt-2.5 text-center transition-colors duration-300 ${darkMode ? 'text-gray-500' : 'text-gray-400'
-                }`}>
-                Press <kbd className={`px-1.5 py-0.5 rounded text-xs font-mono ${darkMode ? 'bg-gray-700 border border-gray-600' : 'bg-gray-100 border border-gray-300'
-                    }`}>Enter</kbd> to send • <kbd className={`px-1.5 py-0.5 rounded text-xs font-mono ${darkMode ? 'bg-gray-700 border border-gray-600' : 'bg-gray-100 border border-gray-300'
-                        }`}>Shift+Enter</kbd> for new line
-            </p>
+                        <button
+                            type="submit"
+                            disabled={disabled || !input.trim()}
+                            className={`absolute right-3 bottom-3 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
+                                disabled || !input.trim() 
+                                    ? 'bg-base-300 text-base-content/30 cursor-not-allowed' 
+                                    : 'bg-primary hover:bg-primary-focus text-white shadow-md hover:shadow-lg hover:scale-105 active:scale-95'
+                            }`}
+                            aria-label="Send message"
+                            title="Send message (Enter)"
+                        >
+                            <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                                strokeWidth={2.5}
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M5 12h14M12 5l7 7-7 7"
+                                />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <p className="text-xs text-center mt-3 text-base-content/50">
+                        Medical advice can be inaccurate. Always verify important health information.
+                    </p>
+                </form>
+            </div>
         </div>
     )
 }

@@ -5,37 +5,58 @@
     opacity: 0;
     transform: translateY(10px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
 .message-animation {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes pulse {
-
-  0%,
-  100% {
-    opacity: 1;
+  0%, 100% {
+    opacity: 0.4;
   }
-
   50% {
-    opacity: 0.5;
+    opacity: 1;
   }
 }
 
 .typing-indicator {
-  animation: pulse 1.5s ease-in-out infinite;
+  animation: pulse 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Glassmorphism effect */
-.glass-effect {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+/* Button hover effects - ChatGPT style */
+button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:hover {
+  transform: scale(1.02);
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+/* Focus rings for accessibility */
+*:focus-visible {
+  outline: 2px solid hsl(var(--p));
+  outline-offset: 2px;
+}
+
+/* Smooth transitions */
+.transition-smooth {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
