@@ -1,0 +1,381 @@
+"""
+Chat Routes for Medical Chatbot API
+Main endpoints for conversational interaction
+"""
+
+import time
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime
+
+from ...core import logger
+from ...core.exceptions import EmergencyDetectedError, HarmfulQueryError
+from ..dependencies import (
+    get_rag_service,
+    get_memory_service,
+    get_safety_validator,
+    get_response_analyzer,
+    get_performance_metrics
+)
+from ..models.request import ChatRequest, ResetRequest, ExportRequest
+from ..models.response import (
+    ChatResponse,
+    HistoryResponse,
+    SuccessResponse,
+    ConversationMessage,
+    SourceDocument,
+    ResponseStatus
+)
+
+
+router = APIRouter(
+    prefix="/chat",
+    tags=["Chat"]
+)
+
+
+@router.post("", response_model=ChatResponse)
+@router.post("/", response_model=ChatResponse)
+async def chat(
+    request: ChatRequest,
+    rag_service = Depends(get_rag_service),
+    safety_validator = Depends(get_safety_validator),
+    response_analyzer = Depends(get_response_analyzer),
+    metrics = Depends(get_performance_metrics)
+):
+    """
+    Process a chat message and return AI response
+    
+    This endpoint:
+    1. Validates the query for safety
+    2. Checks for emergency keywords
+    3. Processes the query through RAG pipeline
+    4. Analyzes response quality
+    5. Returns structured response with sources
+    
+    Args:
+        request: ChatRequest with user query
+        
+    Returns:
+        ChatResponse: AI response with sources and confidence
+        
+    Raises:
+        EmergencyDetectedError: If emergency keywords detected
+        HarmfulQueryError: If harmful content detected
+        QueryValidationError: If query fails validation
+    """
+    start_time = time.time()
+    query = request.query
+    session_id = request.session_id
+    
+    logger.info(f"Processing chat request: '{query[:50]}...' (session: {session_id})")
+    
+    try:
+        # Step 1: Safety validation
+        validation_result = safety_validator.validate_query(query)
+        
+        if not validation_result["is_valid"]:
+            error_msg = validation_result.get("reason", "Query validation failed")
+            logger.warning(f"Query validation failed: {error_msg}")
+            raise ValueError(error_msg)
+        
+        # Check for emergency
+        if validation_result.get("is_emergency"):
+            logger.critical(f"EMERGENCY DETECTED in query: {query}")
+            raise EmergencyDetectedError(
+                emergency_type=validation_result.get("emergency_type", "unknown"),
+                query=query
+            )
+        
+        # Check for harmful content
+        if validation_result.get("is_harmful"):
+            logger.warning(f"Harmful query blocked: {query}")
+            raise HarmfulQueryError(query=query)
+        
+        # Step 2: Process query through RAG
+        logger.debug("Processing query through RAG pipeline")
+        result = rag_service({"question": query})
+        
+        answer = result.get("answer", "")
+        source_docs = result.get("source_documents", [])
+        
+        # Step 3: Analyze response
+        analysis = response_analyzer.analyze_response(result)
+        
+        # Step 4: Format sources
+        formatted_sources = []
+        for doc in source_docs:
+            formatted_sources.append(
+                SourceDocument(
+                    content=doc.page_content[:200] + "..." if len(doc.page_content) > 200 else doc.page_content,
+                    page=doc.metadata.get("page"),
+                    metadata=doc.metadata
+                )
+            )
+        
+        # Step 5: Record metrics
+        response_time = time.time() - start_time
+        metrics.record_query(
+            success=True,
+            response_time=response_time,
+            confidence=analysis["confidence"]
+        )
+        
+        # Step 6: Add disclaimer if needed
+        disclaimer = None
+        if validation_result.get("needs_disclaimer"):
+            disclaimer = safety_validator.add_disclaimer(answer)
+        
+        # Build response
+        response = ChatResponse(
+            status=ResponseStatus.SUCCESS,
+            answer=answer,
+            sources=formatted_sources,
+            confidence=analysis["confidence_label"],
+            confidence_score=analysis["confidence"],
+            response_time=response_time,
+            timestamp=datetime.now(),
+            session_id=session_id,
+            disclaimer=disclaimer
+        )
+        
+        logger.info(
+            f"Chat request completed: confidence={analysis['confidence']:.2f}, "
+            f"sources={len(formatted_sources)}, time={response_time:.2f}s"
+        )
+        
+        return response
+        
+    except (EmergencyDetectedError, HarmfulQueryError) as e:
+        # Safety exceptions - record but re-raise for middleware
+        metrics.record_query(
+            success=False,
+            response_time=time.time() - start_time,
+            is_emergency=isinstance(e, EmergencyDetectedError)
+        )
+        raise
+        
+    except Exception as e:
+        # Record failure
+        response_time = time.time() - start_time
+        metrics.record_query(
+            success=False,
+            response_time=response_time
+        )
+        logger.error(f"Chat request failed: {e}")
+        raise
+
+
+@router.get("/history", response_model=HistoryResponse)
+async def get_history(
+    session_id: Optional[str] = None,
+    memory_service = Depends(get_memory_service)
+):
+    """
+    Get conversation history
+    
+    Args:
+        session_id: Optional session ID
+        
+    Returns:
+        HistoryResponse: Conversation history
+    """
+    logger.info(f"Retrieving conversation history (session: {session_id})")
+    
+    try:
+        # Get memory buffer
+        memory_vars = memory_service.load_memory_variables({})
+        chat_history = memory_vars.get("chat_history", "")
+        
+        # Parse history into messages
+        messages = []
+        if chat_history:
+            # Split by common patterns
+            parts = chat_history.split("\n")
+            current_role = None
+            current_content = []
+            
+            for part in parts:
+                part = part.strip()
+                if not part:
+                    continue
+                
+                if part.lower().startswith(("human:", "user:")):
+                    if current_role and current_content:
+                        messages.append(
+                            ConversationMessage(
+                                role=current_role,
+                                content=" ".join(current_content),
+                                timestamp=datetime.now()
+                            )
+                        )
+                    current_role = "human"
+                    current_content = [part.split(":", 1)[1].strip()]
+                    
+                elif part.lower().startswith(("ai:", "assistant:", "bot:")):
+                    if current_role and current_content:
+                        messages.append(
+                            ConversationMessage(
+                                role=current_role,
+                                content=" ".join(current_content),
+                                timestamp=datetime.now()
+                            )
+                        )
+                    current_role = "ai"
+                    current_content = [part.split(":", 1)[1].strip()]
+                    
+                else:
+                    if current_content:
+                        current_content.append(part)
+            
+            # Add last message
+            if current_role and current_content:
+                messages.append(
+                    ConversationMessage(
+                        role=current_role,
+                        content=" ".join(current_content),
+                        timestamp=datetime.now()
+                    )
+                )
+        
+        response = HistoryResponse(
+            status=ResponseStatus.SUCCESS,
+            messages=messages,
+            session_id=session_id,
+            total_messages=len(messages)
+        )
+        
+        logger.info(f"Retrieved {len(messages)} messages from history")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Failed to retrieve history: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve history: {str(e)}"
+        )
+
+
+@router.post("/reset", response_model=SuccessResponse)
+async def reset_conversation(
+    request: ResetRequest,
+    memory_service = Depends(get_memory_service)
+):
+    """
+    Reset conversation memory
+    
+    Args:
+        request: ResetRequest with optional session ID
+        
+    Returns:
+        SuccessResponse: Confirmation message
+    """
+    session_id = request.session_id
+    
+    if not request.confirm:
+        raise ValueError("Reset must be confirmed with confirm=true")
+    
+    logger.info(f"Resetting conversation memory (session: {session_id})")
+    
+    try:
+        # Clear memory
+        memory_service.clear()
+        
+        response = SuccessResponse(
+            status=ResponseStatus.SUCCESS,
+            message="Conversation history has been reset",
+            data={"session_id": session_id} if session_id else None,
+            timestamp=datetime.now()
+        )
+        
+        logger.info("Conversation memory reset successfully")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Failed to reset memory: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reset conversation: {str(e)}"
+        )
+
+
+@router.post("/export")
+async def export_conversation(
+    request: ExportRequest,
+    memory_service = Depends(get_memory_service)
+):
+    """
+    Export conversation history
+    
+    Args:
+        request: ExportRequest with format specification
+        
+    Returns:
+        Conversation history in requested format
+    """
+    session_id = request.session_id
+    export_format = request.format
+    
+    logger.info(f"Exporting conversation (session: {session_id}, format: {export_format})")
+    
+    try:
+        # Get memory
+        memory_vars = memory_service.load_memory_variables({})
+        chat_history = memory_vars.get("chat_history", "")
+        
+        if export_format == "json":
+            # Get structured history
+            history_response = await get_history(session_id, memory_service)
+            return {
+                "format": "json",
+                "session_id": session_id,
+                "messages": [msg.model_dump() for msg in history_response.messages],
+                "exported_at": datetime.now().isoformat()
+            }
+        
+        elif export_format == "txt":
+            # Return plain text
+            return {
+                "format": "txt",
+                "session_id": session_id,
+                "content": chat_history if chat_history else "No conversation history",
+                "exported_at": datetime.now().isoformat()
+            }
+        
+        else:
+            raise ValueError(f"Unsupported export format: {export_format}")
+            
+    except Exception as e:
+        logger.error(f"Failed to export conversation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to export conversation: {str(e)}"
+        )
+
+
+@router.get("/status")
+async def chat_status():
+    """
+    Get chat service status
+    
+    Returns:
+        dict: Chat service status
+    """
+    try:
+        # Try to access RAG service
+        rag_service = get_rag_service()
+        memory_service = get_memory_service()
+        
+        return {
+            "status": "operational",
+            "rag_service": "available",
+            "memory_service": "available",
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.warning(f"Chat service status check failed: {e}")
+        return {
+            "status": "degraded",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
