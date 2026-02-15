@@ -8,5 +8,3 @@ def download_ollama_embeddings():
 
 embeddings = download_ollama_embeddings()
 logger.info(f"Embeddings initialized with model: {config.EMBEDDING_MODEL}")
-print(f"Ollama embeddings initialized successfully!")
-print(f"   Model: {config.EMBEDDING_MODEL}")

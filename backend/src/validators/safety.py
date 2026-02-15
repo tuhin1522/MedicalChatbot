@@ -1,5 +1,5 @@
 import re
-from typing import Tuple, Optional
+from typing import Dict, Optional
 from ..core import config, logger
 
 class SafetyValidator:
@@ -37,33 +37,67 @@ class SafetyValidator:
     )
     
     @staticmethod
-    def validate_query(query: str) -> Tuple[bool, Optional[str]]:
+    def validate_query(query: str) -> Dict[str, any]:
         """
         Validate if query is safe and appropriate
-        Returns: (is_valid, error_message)
+        Returns: dict with validation results
         """
         query_lower = query.lower().strip()
         
         # Check length
         if len(query) < 3:
-            return False, "Query too short. Please ask a complete question."
+            return {
+                "is_valid": False,
+                "reason": "Query too short. Please ask a complete question.",
+                "is_emergency": False,
+                "is_harmful": False,
+                "needs_disclaimer": True
+            }
         
         if len(query) > config.MAX_QUERY_LENGTH:
-            return False, f"Query too long (max {config.MAX_QUERY_LENGTH} characters)."
+            return {
+                "is_valid": False,
+                "reason": f"Query too long (max {config.MAX_QUERY_LENGTH} characters).",
+                "is_emergency": False,
+                "is_harmful": False,
+                "needs_disclaimer": True
+            }
         
         # Check for harmful intent
         for keyword in SafetyValidator.HARMFUL_KEYWORDS:
             if keyword in query_lower:
                 logger.warning(f"Harmful query detected: {keyword}")
-                return False, (
-                    "I cannot provide information that could cause harm.\n\n"
-                    "If you're experiencing a mental health crisis:\n"
-                    "• National Suicide Prevention Lifeline: 988 (US)\n"
-                    "• Crisis Text Line: Text HOME to 741741\n"
-                    "• International: https://findahelpline.com"
-                )
+                return {
+                    "is_valid": False,
+                    "reason": (
+                        "I cannot provide information that could cause harm.\n\n"
+                        "If you're experiencing a mental health crisis:\n"
+                        "• National Suicide Prevention Lifeline: 988 (US)\n"
+                        "• Crisis Text Line: Text HOME to 741741\n"
+                        "• International: https://findahelpline.com"
+                    ),
+                    "is_emergency": False,
+                    "is_harmful": True,
+                    "needs_disclaimer": True
+                }
         
-        return True, None
+        # Check for emergency
+        is_emergency = SafetyValidator.detect_emergency(query)
+        if is_emergency:
+            return {
+                "is_valid": True,
+                "is_emergency": True,
+                "emergency_type": "medical",
+                "is_harmful": False,
+                "needs_disclaimer": True
+            }
+        
+        return {
+            "is_valid": True,
+            "is_emergency": False,
+            "is_harmful": False,
+            "needs_disclaimer": True
+        }
     
     @staticmethod
     def detect_emergency(query: str) -> bool:

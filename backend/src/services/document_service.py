@@ -33,9 +33,3 @@ def text_split(minimal_documents):
     )
     text_chunks = text_splitter.split_documents(minimal_documents)
     return text_chunks
-
-extracted_data = load_pdf("../data/")
-minimal_documents = filter_to_minimal_docs(extracted_data)
-text_chunks = text_split(minimal_documents)
-logger.info(f"Created {len(text_chunks)} text chunks")
-print(f"Number of text chunks: {len(text_chunks)}")

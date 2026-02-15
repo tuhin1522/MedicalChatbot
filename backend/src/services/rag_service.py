@@ -13,33 +13,26 @@ llm = ChatOllama(
     temperature=config.TEMPERATURE,
 )
 
+# Initialize conversational QA chain
+conversational_qa = None
+
 try:
-    conversational_qa = ConversationalRetrievalChain.from_llm(
-        llm=llm,
-        retriever=vectordb.as_retriever(
-            search_type=config.SEARCH_TYPE,
-            search_kwargs={'k': config.RETRIEVAL_K}
-        ),
-        memory=memory,
-        return_source_documents=True,
-        verbose=True,  # Enable to debug query reformulation
-        combine_docs_chain_kwargs={"prompt": conversational_prompt}
-    )
-    
-    logger.info("Conversational RAG chain initialized successfully")
-    print("🎉 Conversational RAG Chain Created Successfully!")
-    print(f"   LLM Model: {config.LLM_MODEL}")
-    print(f"   Temperature: {config.TEMPERATURE}")
-    print(f"   Retrieval K: {config.RETRIEVAL_K}")
-    print(f"   Memory: Enabled ✅")
-    print("\n📝 KEY IMPROVEMENTS:")
-    print("   ✅ Remembers conversation history")
-    print("   ✅ Reformulates follow-up questions with context")  
-    print("   ✅ Maintains topic continuity")
-    print("   ✅ Retrieves correct documents for 'it', 'this', 'that'")
-    print("\n💡 This is the ONLY chain you need - no separate 'qa' chain!")
+    if vectordb is not None:
+        conversational_qa = ConversationalRetrievalChain.from_llm(
+            llm=llm,
+            retriever=vectordb.as_retriever(
+                search_type=config.SEARCH_TYPE,
+                search_kwargs={'k': config.RETRIEVAL_K}
+            ),
+            memory=memory,
+            return_source_documents=True,
+            verbose=False,  # Set to True for debugging
+            combine_docs_chain_kwargs={"prompt": conversational_prompt}
+        )
+        logger.info("Conversational RAG chain initialized successfully")
+    else:
+        logger.warning("Vector database not available, conversational QA chain not initialized")
     
 except Exception as e:
     logger.error(f"Failed to create conversational chain: {e}")
-    print(f"❌ Error: {e}")
-    raise
+    conversational_qa = None
