@@ -65,7 +65,7 @@ body {
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* Smooth animations */
+/* Animations */
 @keyframes slideInUp {
   from {
     opacity: 0;
@@ -74,15 +74,6 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
   }
 }
 

@@ -7,6 +7,7 @@ const ChatInterface = () => {
     const [messages, setMessages] = useState([])
     const [isTyping, setIsTyping] = useState(false)
     const [theme, setTheme] = useState('light')
+    const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
     const messagesEndRef = useRef(null)
 
     // Apply theme to document
@@ -37,22 +38,34 @@ const ChatInterface = () => {
 
         try {
             // Send message to FastAPI backend
-            const formData = new FormData()
-            formData.append('msg', messageText)
-
-            const response = await fetch('http://localhost:8000/get', {
+            const response = await fetch('http://localhost:8000/chat', {
                 method: 'POST',
-                body: formData
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    query: messageText,
+                    session_id: sessionId
+                })
             })
 
-            const botResponse = await response.text()
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`)
+            }
 
-            // Add bot message
+            const data = await response.json()
+
+            // Add bot message with sources and metadata
             const botMessage = {
                 id: Date.now() + 1,
-                text: botResponse,
+                text: data.answer,
                 sender: 'bot',
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                sources: data.sources || [],
+                confidence: data.confidence,
+                confidence_score: data.confidence_score,
+                disclaimer: data.disclaimer,
+                response_time: data.response_time
             }
             setMessages(prev => [...prev, botMessage])
         } catch (error) {
@@ -99,6 +112,25 @@ const ChatInterface = () => {
                                 <p className="text-base text-base-content/60 max-w-md">
                                     I'm your AI medical assistant. Ask me about symptoms, conditions, treatments, or general health information.
                                 </p>
+                            </div>
+
+                            {/* Quick Actions */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl px-4">
+                                {[
+                                    { icon: '🩺', text: 'What are the symptoms of diabetes?', question: 'What are the symptoms of diabetes?' },
+                                    { icon: '💊', text: 'Tell me about hypertension treatment', question: 'What are the treatment options for hypertension?' },
+                                    { icon: '🫀', text: 'How to maintain heart health?', question: 'What are the best ways to maintain a healthy heart?' },
+                                    { icon: '🏥', text: 'When should I see a doctor?', question: 'When should I consult a doctor for common symptoms?' }
+                                ].map((action, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => handleSendMessage(action.question)}
+                                        className="group flex items-center gap-3 p-4 bg-base-200/50 hover:bg-base-200 border border-base-300 hover:border-primary/50 rounded-xl transition-all duration-200 text-left hover:shadow-md"
+                                    >
+                                        <span className="text-2xl">{action.icon}</span>
+                                        <span className="text-sm text-base-content/80 group-hover:text-base-content">{action.text}</span>
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     )}
