@@ -39,6 +39,7 @@ class ChatbotConfig:
     
     # Logging Configuration
     LOG_LEVEL: str = "INFO"
+    LOG_DIR: str = "logs"
 
 # Initialize configuration
 config = ChatbotConfig()

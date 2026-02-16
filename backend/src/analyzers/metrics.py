@@ -42,8 +42,24 @@ class PerformanceMetrics:
         if is_emergency:
             self.metrics["emergency_detections"] += 1
     
-    def get_summary(self) -> str:
-        """Get formatted metrics summary"""
+    def get_summary(self) -> Dict[str, Any]:
+        """Get metrics summary as dictionary"""
+        m = self.metrics
+        success_rate = (m["successful_queries"] / m["total_queries"] * 100 
+                       if m["total_queries"] > 0 else 0)
+        
+        return {
+            "total_queries": m["total_queries"],
+            "successful_queries": m["successful_queries"],
+            "failed_queries": m["failed_queries"],
+            "success_rate": success_rate,
+            "average_response_time": m["avg_response_time"],
+            "average_confidence_score": m["avg_confidence"],
+            "emergency_detections": m["emergency_detections"]
+        }
+    
+    def get_summary_text(self) -> str:
+        """Get formatted metrics summary as text"""
         m = self.metrics
         success_rate = (m["successful_queries"] / m["total_queries"] * 100 
                        if m["total_queries"] > 0 else 0)

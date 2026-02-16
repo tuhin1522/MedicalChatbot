@@ -157,6 +157,7 @@ async def export_metrics(
                 "",
                 f"Average Response Time: {summary['average_response_time']:.3f}s",
                 f"Average Confidence: {summary['average_confidence_score']:.2f}",
+                f"Emergencies Detected: {summary['emergency_detections']}",
                 "",
                 "=" * 50
             ]

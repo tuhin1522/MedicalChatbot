@@ -65,7 +65,7 @@ if __name__ == "__main__":
     print("✅ Recorded 4 queries (3 success, 1 failure, 1 emergency)\n")
     
     # Get summary
-    summary = metrics.get_summary()
+    summary = metrics.get_summary_text()
     print("📊 Metrics Summary:")
     print(summary)
     
