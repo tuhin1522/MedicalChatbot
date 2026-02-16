@@ -1,10 +1,11 @@
+from typing import Optional, Dict, Any
 from ..core import config, logger
 from langchain_ollama import ChatOllama
 from langchain.chains import ConversationalRetrievalChain
 from langchain.prompts import PromptTemplate
 from .embedding_service import embeddings
 from .vectorstore_service import vectordb
-from .memory_service import memory
+from .memory_service import memory, memory_manager
 from ..prompts.medical_prompts import conversational_prompt
 
 # Initialize Ollama LLM
@@ -36,3 +37,37 @@ try:
 except Exception as e:
     logger.error(f"Failed to create conversational chain: {e}")
     conversational_qa = None
+
+
+def process_query_with_session(question: str, session_id: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Process a query with session-specific conversation memory
+    
+    Args:
+        question: User's question
+        session_id: Session identifier for conversation tracking
+        
+    Returns:
+        Dict containing answer and source documents
+        
+    Raises:
+        ValueError: If conversational_qa is not initialized
+    """
+    if conversational_qa is None:
+        raise ValueError("RAG service not initialized")
+    
+    # Get session-specific memory
+    session_memory = memory_manager.get_memory(session_id)
+    
+    # Temporarily swap memory in the chain
+    original_memory = conversational_qa.memory
+    conversational_qa.memory = session_memory
+    
+    try:
+        # Process the query
+        result = conversational_qa({"question": question})
+        logger.debug(f"Query processed for session: {session_id}")
+        return result
+    finally:
+        # Restore original memory
+        conversational_qa.memory = original_memory

@@ -218,4 +218,5 @@ frontend/.vite/
 *.pid
 backend.log
 frontend.log
+*.txt
 

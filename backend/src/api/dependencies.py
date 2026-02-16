@@ -117,25 +117,25 @@ def get_rag_service():
 
 def get_memory_service():
     """
-    Get conversation memory service
+    Get conversation memory manager (session-aware)
     
     Returns:
-        ConversationBufferWindowMemory: Memory service
+        SessionMemoryManager: Memory manager with per-session support
         
     Raises:
         ServiceInitializationError: If service cannot be initialized
     """
     try:
-        from ..services.memory_service import memory
+        from ..services.memory_service import memory_manager
         
-        if memory is None:
+        if memory_manager is None:
             raise ServiceInitializationError(
                 "Memory service not initialized",
                 "memory",
                 "Ensure dependencies are installed"
             )
         
-        return memory
+        return memory_manager
     except ImportError as e:
         logger.error(f"Failed to import memory service: {e}")
         raise ServiceInitializationError(

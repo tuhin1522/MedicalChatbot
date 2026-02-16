@@ -38,7 +38,6 @@ router = APIRouter(
 @router.post("/", response_model=ChatResponse)
 async def chat(
     request: ChatRequest,
-    rag_service = Depends(get_rag_service),
     safety_validator = Depends(get_safety_validator),
     response_analyzer = Depends(get_response_analyzer),
     metrics = Depends(get_performance_metrics)
@@ -92,9 +91,10 @@ async def chat(
             logger.warning(f"Harmful query blocked: {query}")
             raise HarmfulQueryError(query=query)
         
-        # Step 2: Process query through RAG
-        logger.debug("Processing query through RAG pipeline")
-        result = rag_service({"question": query})
+        # Step 2: Process query through RAG with session-specific memory
+        logger.debug(f"Processing query through RAG pipeline (session: {session_id})")
+        from ...services.rag_service import process_query_with_session
+        result = process_query_with_session(query, session_id)
         
         answer = result.get("answer", "")
         source_docs = result.get("source_documents", [])
@@ -169,7 +169,7 @@ async def chat(
 @router.get("/history", response_model=HistoryResponse)
 async def get_history(
     session_id: Optional[str] = None,
-    memory_service = Depends(get_memory_service)
+    memory_manager = Depends(get_memory_service)
 ):
     """
     Get conversation history
@@ -183,60 +183,75 @@ async def get_history(
     logger.info(f"Retrieving conversation history (session: {session_id})")
     
     try:
-        # Get memory buffer
-        memory_vars = memory_service.load_memory_variables({})
-        chat_history = memory_vars.get("chat_history", "")
+        # Get session-specific memory
+        session_memory = memory_manager.get_memory(session_id)
+        memory_vars = session_memory.load_memory_variables({})
+        chat_history = memory_vars.get("chat_history", [])
         
         # Parse history into messages
         messages = []
         if chat_history:
-            # Split by common patterns
-            parts = chat_history.split("\n")
-            current_role = None
-            current_content = []
-            
-            for part in parts:
-                part = part.strip()
-                if not part:
-                    continue
-                
-                if part.lower().startswith(("human:", "user:")):
-                    if current_role and current_content:
-                        messages.append(
-                            ConversationMessage(
-                                role=current_role,
-                                content=" ".join(current_content),
-                                timestamp=datetime.now()
-                            )
+            # Handle list of message objects (return_messages=True)
+            if isinstance(chat_history, list):
+                for msg in chat_history:
+                    # LangChain message objects have 'type' and 'content' attributes
+                    role = "human" if msg.type == "human" else "ai"
+                    messages.append(
+                        ConversationMessage(
+                            role=role,
+                            content=msg.content,
+                            timestamp=datetime.now()
                         )
-                    current_role = "human"
-                    current_content = [part.split(":", 1)[1].strip()]
-                    
-                elif part.lower().startswith(("ai:", "assistant:", "bot:")):
-                    if current_role and current_content:
-                        messages.append(
-                            ConversationMessage(
-                                role=current_role,
-                                content=" ".join(current_content),
-                                timestamp=datetime.now()
-                            )
-                        )
-                    current_role = "ai"
-                    current_content = [part.split(":", 1)[1].strip()]
-                    
-                else:
-                    if current_content:
-                        current_content.append(part)
-            
-            # Add last message
-            if current_role and current_content:
-                messages.append(
-                    ConversationMessage(
-                        role=current_role,
-                        content=" ".join(current_content),
-                        timestamp=datetime.now()
                     )
-                )
+            # Handle string format (return_messages=False)
+            elif isinstance(chat_history, str):
+                # Split by common patterns
+                parts = chat_history.split("\n")
+                current_role = None
+                current_content = []
+                
+                for part in parts:
+                    part = part.strip()
+                    if not part:
+                        continue
+                    
+                    if part.lower().startswith(("human:", "user:")):
+                        if current_role and current_content:
+                            messages.append(
+                                ConversationMessage(
+                                    role=current_role,
+                                    content=" ".join(current_content),
+                                    timestamp=datetime.now()
+                                )
+                            )
+                        current_role = "human"
+                        current_content = [part.split(":", 1)[1].strip()]
+                        
+                    elif part.lower().startswith(("ai:", "assistant:", "bot:")):
+                        if current_role and current_content:
+                            messages.append(
+                                ConversationMessage(
+                                    role=current_role,
+                                    content=" ".join(current_content),
+                                    timestamp=datetime.now()
+                                )
+                            )
+                        current_role = "ai"
+                        current_content = [part.split(":", 1)[1].strip()]
+                        
+                    else:
+                        if current_content:
+                            current_content.append(part)
+                
+                # Add last message
+                if current_role and current_content:
+                    messages.append(
+                        ConversationMessage(
+                            role=current_role,
+                            content=" ".join(current_content),
+                            timestamp=datetime.now()
+                        )
+                    )
         
         response = HistoryResponse(
             status=ResponseStatus.SUCCESS,
@@ -259,7 +274,7 @@ async def get_history(
 @router.post("/reset", response_model=SuccessResponse)
 async def reset_conversation(
     request: ResetRequest,
-    memory_service = Depends(get_memory_service)
+    memory_manager = Depends(get_memory_service)
 ):
     """
     Reset conversation memory
@@ -278,8 +293,8 @@ async def reset_conversation(
     logger.info(f"Resetting conversation memory (session: {session_id})")
     
     try:
-        # Clear memory
-        memory_service.clear()
+        # Clear session-specific memory
+        memory_manager.clear_memory(session_id)
         
         response = SuccessResponse(
             status=ResponseStatus.SUCCESS,
@@ -302,7 +317,7 @@ async def reset_conversation(
 @router.post("/export")
 async def export_conversation(
     request: ExportRequest,
-    memory_service = Depends(get_memory_service)
+    memory_manager = Depends(get_memory_service)
 ):
     """
     Export conversation history
@@ -319,13 +334,9 @@ async def export_conversation(
     logger.info(f"Exporting conversation (session: {session_id}, format: {export_format})")
     
     try:
-        # Get memory
-        memory_vars = memory_service.load_memory_variables({})
-        chat_history = memory_vars.get("chat_history", "")
-        
         if export_format == "json":
             # Get structured history
-            history_response = await get_history(session_id, memory_service)
+            history_response = await get_history(session_id, memory_manager)
             return {
                 "format": "json",
                 "session_id": session_id,
@@ -334,11 +345,22 @@ async def export_conversation(
             }
         
         elif export_format == "txt":
-            # Return plain text
+            # Get structured history first
+            history_response = await get_history(session_id, memory_manager)
+            
+            # Convert messages to plain text
+            content = ""
+            for msg in history_response.messages:
+                role = "Human" if msg.role == "human" else "AI"
+                content += f"{role}: {msg.content}\n\n"
+            
+            if not content:
+                content = "No conversation history"
+            
             return {
                 "format": "txt",
                 "session_id": session_id,
-                "content": chat_history if chat_history else "No conversation history",
+                "content": content.strip(),
                 "exported_at": datetime.now().isoformat()
             }
         
