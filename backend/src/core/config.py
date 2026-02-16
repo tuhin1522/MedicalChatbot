@@ -9,7 +9,7 @@ class ChatbotConfig:
     # Model Configuration
     EMBEDDING_MODEL: str = "nomic-embed-text"
     LLM_MODEL: str = "llama3.2:1b"
-    TEMPERATURE: float = 0.3
+    TEMPERATURE: float = 0.5
     
     # Memory Configuration
     MEMORY_WINDOW_SIZE: int = 4  # Keep last 4 Q&A pairs (8 messages) to prevent overflow

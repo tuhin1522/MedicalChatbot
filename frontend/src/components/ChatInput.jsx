@@ -33,8 +33,8 @@ const ChatInput = ({ onSendMessage, disabled, theme }) => {
     }
 
     return (
-        <div className="sticky bottom-12 bg-base-100 pt-4 pb-8 mb-6">
-            <div className="chat-container">
+        <div className="sticky bottom-0 bg-base-100 z-50 mt-6">
+            <div className="chat-container py-4">
                 <form onSubmit={handleSubmit} className="relative">
                     <div className="relative flex items-center bg-base-200/50 border-2 border-base-300 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 focus-within:border-primary/50 focus-within:shadow-lg">
                         <textarea
@@ -80,11 +80,12 @@ const ChatInput = ({ onSendMessage, disabled, theme }) => {
                             </svg>
                         </button>
                     </div>
-
-                    <p className="text-xs text-center mt-3 text-base-content/50">
-                        Medical advice can be inaccurate. Always verify important health information.
-                    </p>
                 </form>
+                
+                {/* Disclaimer below input */}
+                <p className="text-xs text-center mt-3 text-base-content/50 pb-2">
+                    Medical advice can be inaccurate. Always verify important health information.
+                </p>
             </div>
         </div>
     )

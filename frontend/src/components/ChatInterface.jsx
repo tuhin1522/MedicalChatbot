@@ -95,7 +95,7 @@ const ChatInterface = () => {
             <ChatHeader theme={theme} toggleTheme={toggleTheme} />
 
             {/* Messages Container */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto pb-24">
                 <div className="chat-container py-6">
                     {messages.length === 0 && (
                         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-180px)] px-4 space-y-8 py-12">
