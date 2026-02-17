@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { api } from "@/services/api";
 import {
   Dialog,
   DialogContent,
@@ -36,21 +37,15 @@ export function RegisterDialog({ open, onOpenChange, trigger, onLoginClick }: Re
     setIsLoading(true);
     
     try {
-      const response = await fetch('http://localhost:8000/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password, full_name: fullName }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || 'Registration failed');
-      }
-
+      await api.register(email, password, fullName);
+      
       toast.success('Registration successful! Please check your email to verify your account.');
-      // setMsg('Registration successful! Please check your email to verify your account.');
+      
+      // Clear form and close dialog
+      setEmail('');
+      setFullName('');
+      setPassword('');
+      if (setShow) setShow(false);
       
     } catch (err: any) {
       toast.error(err.message || "Registration failed");

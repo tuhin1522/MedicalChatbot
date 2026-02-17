@@ -5,8 +5,9 @@ Endpoints for user registration, login, verification, and password reset
 
 from datetime import timedelta
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import RedirectResponse, JSONResponse
 from sqlmodel import Session, select
 
 from ...core import logger
@@ -20,7 +21,8 @@ from ...auth import (
     generate_verification_token,
     send_verification_email,
     send_password_reset_email,
-    ACCESS_TOKEN_EXPIRE_MINUTES
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    FRONTEND_URL
 )
 
 
@@ -139,21 +141,23 @@ async def login(
 
 
 @router.get("/verify/{token}")
-async def verify_email(token: str, session: Session = Depends(get_session)):
+async def verify_email(token: str, request: Request, session: Session = Depends(get_session)):
     """
-    Verify user email with token
+    Verify user email with token - redirects browsers, returns JSON for API calls
     
     Args:
         token: Verification token from email
+        request: FastAPI request to check Accept header
         session: Database session
         
     Returns:
-        dict: Success message
-        
-    Raises:
-        HTTPException: If token is invalid
+        RedirectResponse for browsers or JSONResponse for API calls
     """
     logger.info(f"Email verification attempt with token: {token[:10]}...")
+    
+    # Check if request is from browser or API (fetch)
+    accept_header = request.headers.get('accept', '')
+    is_browser = 'text/html' in accept_header
     
     # Find user by verification token
     statement = select(User).where(User.verification_token == token)
@@ -161,15 +165,28 @@ async def verify_email(token: str, session: Session = Depends(get_session)):
     
     if not user:
         logger.warning(f"Email verification failed: Invalid token")
-        raise HTTPException(
+        if is_browser:
+            return RedirectResponse(
+                url=f"{FRONTEND_URL}/verify-email?token={token}&status=error&message=Invalid+verification+token",
+                status_code=303
+            )
+        return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid verification token"
+            content={"status": "error", "message": "Invalid verification token"}
         )
     
     # Check if already verified
     if user.is_verified:
         logger.info(f"Email already verified: {user.email}")
-        return {"message": "Email already verified. You can now login."}
+        if is_browser:
+            return RedirectResponse(
+                url=f"{FRONTEND_URL}/verify-email?token={token}&status=success&message=Email+already+verified",
+                status_code=303
+            )
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"status": "success", "message": "Email already verified. You can now login."}
+        )
     
     # Mark as verified
     user.is_verified = True
@@ -177,7 +194,15 @@ async def verify_email(token: str, session: Session = Depends(get_session)):
     session.commit()
     
     logger.info(f"Email verified successfully: {user.email}")
-    return {"message": "Email verified successfully. You can now login."}
+    if is_browser:
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/verify-email?token={token}&status=success&message=Email+verified+successfully",
+            status_code=303
+        )
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={"status": "success", "message": "Email verified successfully. You can now login."}
+    )
 
 
 @router.post("/forgot-password")

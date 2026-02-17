@@ -20,6 +20,28 @@ export interface Conversation {
 }
 
 export const api = {
+  async register(email: string, password: string, full_name: string) {
+    const response = await fetch(`${API_URL}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, full_name }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Registration failed");
+    }
+    return response.json();
+  },
+
+  async verifyEmail(token: string) {
+    const response = await fetch(`${API_URL}/auth/verify/${token}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Verification failed");
+    }
+    return response.json();
+  },
+
   async chat(message: string, conversation_id?: number, response_type: string = "elaborative") {
     const response = await fetch(`${API_URL}/chat`, {
       method: "POST",

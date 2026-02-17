@@ -12,7 +12,8 @@ from .utils import (
     generate_verification_token,
     send_verification_email,
     send_password_reset_email,
-    ACCESS_TOKEN_EXPIRE_MINUTES
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    FRONTEND_URL
 )
 
 __all__ = [
@@ -24,5 +25,6 @@ __all__ = [
     "generate_verification_token",
     "send_verification_email",
     "send_password_reset_email",
-    "ACCESS_TOKEN_EXPIRE_MINUTES"
+    "ACCESS_TOKEN_EXPIRE_MINUTES",
+    "FRONTEND_URL"
 ]

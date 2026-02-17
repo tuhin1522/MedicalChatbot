@@ -167,7 +167,8 @@ def send_verification_email(email: str, token: str) -> bool:
     Returns:
         bool: True if email sent successfully, False otherwise
     """
-    verification_url = f"http://localhost:8000/auth/verify/{token}"
+    # Use frontend URL for better UX - will redirect to verification page
+    verification_url = f"{FRONTEND_URL}/verify-email?token={token}"
     
     # Check if SMTP is configured
     if not SMTP_USER or not SMTP_PASSWORD:
