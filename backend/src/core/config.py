@@ -1,6 +1,13 @@
+import os
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+env_path = Path(__file__).parent.parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 @dataclass
 class ChatbotConfig:

@@ -5,7 +5,7 @@ FastAPI application for the medical chatbot backend
 
 from fastapi import FastAPI
 
-from .routes import health_router, chat_router, admin_router
+from .routes import health_router, chat_router, admin_router, auth_router
 from .middleware import setup_middleware
 from ..core import logger
 
@@ -35,6 +35,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(chat_router)
     app.include_router(admin_router)
+    app.include_router(auth_router)
     
     # Root endpoint
     @app.get("/", tags=["Root"])
@@ -48,7 +49,8 @@ def create_app() -> FastAPI:
                 "docs": "/docs",
                 "health": "/health",
                 "chat": "/chat",
-                "admin": "/admin"
+                "admin": "/admin",
+                "auth": "/auth"
             }
         }
     
@@ -58,6 +60,18 @@ def create_app() -> FastAPI:
         """Initialize services on startup"""
         logger.info(f"Starting Medical Chatbot API v{__version__}")
         logger.info("API documentation available at /docs")
+        
+        # Initialize database
+        try:
+            from ..postgresql_db.database import init_db, check_db_connection
+            if check_db_connection():
+                init_db()
+                logger.info("Database initialized successfully")
+            else:
+                logger.warning("Database connection unavailable - auth features disabled")
+        except Exception as e:
+            logger.error(f"Failed to initialize database: {e}")
+            logger.warning("Continuing without database - auth features disabled")
     
     # Shutdown event
     @app.on_event("shutdown")
