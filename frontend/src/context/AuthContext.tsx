@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { jwtDecode } from "jwt-decode";
+import { api } from '@/services/api';
 
 interface User {
   id: number;
@@ -13,7 +14,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (token: string) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
@@ -36,7 +37,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // For now, let's just use what we have or fetch /users/me
         fetchUser(token);
       } catch (e) {
-        logout();
+        // Invalid token, logout synchronously
+        logoutSync();
       }
     } else {
       setIsLoading(false);
@@ -45,19 +47,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const fetchUser = async (authToken: string) => {
     try {
-      const response = await fetch('http://localhost:8000/users/me', {
-        headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
-      });
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      } else {
-        logout();
-      }
+      const userData = await api.getCurrentUser();
+      setUser(userData);
     } catch (error) {
-      logout();
+      console.error('Failed to fetch user:', error);
+      // Error fetching user, logout synchronously
+      logoutSync();
     } finally {
       setIsLoading(false);
     }
@@ -69,11 +64,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // fetchUser will be called by useEffect
   };
 
-  const logout = () => {
+  // Synchronous logout for internal use
+  const logoutSync = () => {
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
     setIsLoading(false);
+  };
+
+  // Async logout for external use (from UI)
+  const logout = async () => {
+    try {
+      // Call backend logout endpoint
+      await api.logout();
+    } catch (error) {
+      console.error('Backend logout error:', error);
+    } finally {
+      // Always clear local state and storage
+      logoutSync();
+    }
   };
 
   const value = {

@@ -303,3 +303,22 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     """
     logger.info(f"User profile accessed: {current_user.email}")
     return current_user
+
+
+@router.post("/logout")
+async def logout(current_user: User = Depends(get_current_user)):
+    """
+    Logout current user
+    
+    Note: Since we're using JWT tokens, actual logout is handled client-side.
+    This endpoint is mainly for logging purposes and future enhancements
+    (like token blacklisting if needed).
+    
+    Args:
+        current_user: Current authenticated user from token
+        
+    Returns:
+        dict: Success message
+    """
+    logger.info(f"User logged out: {current_user.email}")
+    return {"message": "Logged out successfully"}

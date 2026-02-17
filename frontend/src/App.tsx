@@ -146,7 +146,12 @@ function Dashboard() {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={logout} className="text-red-500 cursor-pointer">
+                    <DropdownMenuItem 
+                      onClick={async () => {
+                        await logout();
+                      }} 
+                      className="text-red-500 cursor-pointer"
+                    >
                       Log out
                     </DropdownMenuItem>
                   </DropdownMenuContent>

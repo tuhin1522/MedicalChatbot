@@ -33,6 +33,44 @@ export const api = {
     return response.json();
   },
 
+  async login(email: string, password: string) {
+    const formData = new FormData();
+    formData.append('username', email);
+    formData.append('password', password);
+
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Login failed");
+    }
+    return response.json();
+  },
+
+  async getCurrentUser() {
+    const response = await fetch(`${API_URL}/auth/me`, {
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) {
+      throw new Error("Failed to fetch user data");
+    }
+    return response.json();
+  },
+
+  async logout() {
+    try {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: "POST",
+        headers: getAuthHeaders()
+      });
+    } catch (error) {
+      // Logout on frontend even if backend call fails
+      console.error('Logout error:', error);
+    }
+  },
+
   async verifyEmail(token: string) {
     const response = await fetch(`${API_URL}/auth/verify/${token}`);
     if (!response.ok) {

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { api } from "@/services/api";
 import {
   Dialog,
   DialogContent,
@@ -38,22 +39,13 @@ export function LoginDialog({ open, onOpenChange, trigger, onRegisterClick, onFo
     setIsLoading(true);
     
     try {
-      const formData = new FormData();
-      formData.append('username', email);
-      formData.append('password', password);
-
-      const response = await fetch('http://localhost:8000/auth/login', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || 'Login failed');
-      }
-
-      const data = await response.json();
+      const data = await api.login(email, password);
       login(data.access_token);
+      
+      // Clear form
+      setEmail('');
+      setPassword('');
+      
       toast.success("Logged in successfully");
       if (setShow) setShow(false);
     } catch (err: any) {
