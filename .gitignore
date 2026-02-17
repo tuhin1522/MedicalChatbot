@@ -219,4 +219,5 @@ frontend/.vite/
 backend.log
 frontend.log
 *.txt
+.env
 

@@ -102,7 +102,3 @@ class ResponseAnalyzer:
             )
         
         return analysis
-
-
-# Initialize default analyzer instance
-analyzer = ResponseAnalyzer()

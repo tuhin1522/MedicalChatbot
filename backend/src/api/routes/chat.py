@@ -7,9 +7,13 @@ import time
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from datetime import datetime
+from sqlmodel import Session
 
 from ...core import logger
 from ...core.exceptions import EmergencyDetectedError, HarmfulQueryError
+from ...postgresql_db.models import User, Conversation, Message
+from ...postgresql_db.database import get_session
+from ...auth import get_current_user
 from ..dependencies import (
     get_rag_service,
     get_memory_service,
@@ -38,6 +42,8 @@ router = APIRouter(
 @router.post("/", response_model=ChatResponse)
 async def chat(
     request: ChatRequest,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
     safety_validator = Depends(get_safety_validator),
     response_analyzer = Depends(get_response_analyzer),
     metrics = Depends(get_performance_metrics)
@@ -46,32 +52,66 @@ async def chat(
     Process a chat message and return AI response
     
     This endpoint:
-    1. Validates the query for safety
-    2. Checks for emergency keywords
-    3. Processes the query through RAG pipeline
-    4. Analyzes response quality
-    5. Returns structured response with sources
+    1. Creates or retrieves conversation
+    2. Saves user message to database
+    3. Validates the query for safety
+    4. Processes the query through RAG pipeline
+    5. Saves assistant response to database
+    6. Returns structured response with conversation ID
     
     Args:
-        request: ChatRequest with user query
+        request: ChatRequest with user message
+        session: Database session
+        current_user: Current authenticated user
         
     Returns:
-        ChatResponse: AI response with sources and confidence
-        
-    Raises:
-        EmergencyDetectedError: If emergency keywords detected
-        HarmfulQueryError: If harmful content detected
-        QueryValidationError: If query fails validation
+        ChatResponse: AI response with conversation ID and metadata
     """
     start_time = time.time()
-    query = request.query
-    session_id = request.session_id
+    message_text = request.message
+    conversation_id = request.conversation_id
+    response_type = request.response_type
     
-    logger.info(f"Processing chat request: '{query[:50]}...' (session: {session_id})")
+    logger.info(f"Processing chat request: '{message_text[:50]}...' (user: {current_user.email}, conv: {conversation_id})")
     
     try:
-        # Step 1: Safety validation
-        validation_result = safety_validator.validate_query(query)
+        # Step 1: Get or create conversation
+        if conversation_id:
+            conversation = session.get(Conversation, conversation_id)
+            if not conversation:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Conversation not found"
+                )
+            if conversation.user_id != current_user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Not authorized to access this conversation"
+                )
+        else:
+            # Create new conversation with first message as title
+            title = message_text[:50] + "..." if len(message_text) > 50 else message_text
+            conversation = Conversation(
+                title=title,
+                user_id=current_user.id
+            )
+            session.add(conversation)
+            session.commit()
+            session.refresh(conversation)
+            conversation_id = conversation.id
+            logger.info(f"Created new conversation {conversation_id} for user {current_user.email}")
+        
+        # Step 2: Save user message
+        user_message = Message(
+            conversation_id=conversation_id,
+            role="user",
+            content=message_text
+        )
+        session.add(user_message)
+        session.commit()
+        
+        # Step 3: Safety validation
+        validation_result = safety_validator.validate_query(message_text)
         
         if not validation_result["is_valid"]:
             error_msg = validation_result.get("reason", "Query validation failed")
@@ -80,29 +120,48 @@ async def chat(
         
         # Check for emergency
         if validation_result.get("is_emergency"):
-            logger.critical(f"EMERGENCY DETECTED in query: {query}")
+            logger.critical(f"EMERGENCY DETECTED in query: {message_text}")
             raise EmergencyDetectedError(
                 emergency_type=validation_result.get("emergency_type", "unknown"),
-                query=query
+                query=message_text
             )
         
         # Check for harmful content
         if validation_result.get("is_harmful"):
-            logger.warning(f"Harmful query blocked: {query}")
-            raise HarmfulQueryError(query=query)
+            logger.warning(f"Harmful query blocked: {message_text}")
+            raise HarmfulQueryError(query=message_text)
         
-        # Step 2: Process query through RAG with session-specific memory
-        logger.debug(f"Processing query through RAG pipeline (session: {session_id})")
-        from ...services.rag_service import process_query_with_session
-        result = process_query_with_session(query, session_id)
+        # Step 4: Handle greetings
+        if validation_result.get("is_greeting"):
+            logger.info(f"Greeting detected: {message_text}")
+            answer = (
+                "Hello! I'm your AI medical assistant. I'm here to help answer your health and medical questions. "
+                "You can ask me about:\n\n"
+                "• Symptoms and conditions\n"
+                "• Treatment options\n"
+                "• General health information\n"
+                "• Preventive care\n"
+                "• Medication information\n\n"
+                "What would you like to know about today?"
+            )
+            source_docs = []
+            analysis = {
+                "confidence": 1.0,
+                "confidence_label": "high"
+            }
+        else:
+            # Step 5: Process query through RAG
+            logger.debug(f"Processing query through RAG pipeline (conv: {conversation_id})")
+            from ...services.rag_service import process_query_with_session
+            result = process_query_with_session(message_text, str(conversation_id))
+            
+            answer = result.get("answer", "")
+            source_docs = result.get("source_documents", [])
+            
+            # Step 6: Analyze response
+            analysis = response_analyzer.analyze_response(result)
         
-        answer = result.get("answer", "")
-        source_docs = result.get("source_documents", [])
-        
-        # Step 3: Analyze response
-        analysis = response_analyzer.analyze_response(result)
-        
-        # Step 4: Format sources
+        # Step 7: Format sources
         formatted_sources = []
         for doc in source_docs:
             formatted_sources.append(
@@ -113,34 +172,54 @@ async def chat(
                 )
             )
         
-        # Step 5: Record metrics
+        # Step 8: Calculate metrics
         response_time = time.time() - start_time
+        
+        # Step 9: Save assistant message with metadata
+        assistant_message = Message(
+            conversation_id=conversation_id,
+            role="assistant",
+            content=answer,
+            query_type="greeting" if validation_result.get("is_greeting") else "medical_query",
+            elapsed_time=response_time,
+            docs_retrieved=len(source_docs)
+        )
+        session.add(assistant_message)
+        session.commit()
+        
+        # Step 10: Record metrics
         metrics.record_query(
             success=True,
             response_time=response_time,
             confidence=analysis["confidence"]
         )
         
-        # Step 6: Add disclaimer if needed
+        # Step 11: Add disclaimer if needed
         disclaimer = None
         if validation_result.get("needs_disclaimer"):
             disclaimer = safety_validator.add_disclaimer(answer)
         
         # Build response
+        query_type = "greeting" if validation_result.get("is_greeting") else "medical_query"
         response = ChatResponse(
             status=ResponseStatus.SUCCESS,
-            answer=answer,
+            response=answer,
+            conversation_id=conversation_id,
+            metadata={
+                "query_type": query_type,
+                "elapsed_time": response_time,
+                "docs_retrieved": len(source_docs)
+            },
             sources=formatted_sources,
             confidence=analysis["confidence_label"],
             confidence_score=analysis["confidence"],
             response_time=response_time,
             timestamp=datetime.now(),
-            session_id=session_id,
             disclaimer=disclaimer
         )
         
         logger.info(
-            f"Chat request completed: confidence={analysis['confidence']:.2f}, "
+            f"Chat request completed: conv={conversation_id}, confidence={analysis['confidence']:.2f}, "
             f"sources={len(formatted_sources)}, time={response_time:.2f}s"
         )
         

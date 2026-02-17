@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { api } from "@/services/api";
 import {
   Dialog,
   DialogContent,
@@ -34,21 +35,14 @@ export function ForgotPasswordDialog({ open, onOpenChange, trigger, onBackToLogi
     setIsLoading(true);
     
     try {
-      const response = await fetch('http://localhost:8000/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Request failed');
-      }
-
-      const data = await response.json();
-      toast.success(data.message);
+      const data = await api.forgotPassword(email);
+      toast.success(data.message || 'Password reset link sent to your email');
+      
+      // Clear form and close dialog
+      setEmail('');
       if (setShow) setShow(false);
     } catch (err: any) {
-      toast.error("An error occurred. Please try again.");
+      toast.error(err.message || "An error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }

@@ -42,13 +42,20 @@ class PerformanceMetrics:
         if is_emergency:
             self.metrics["emergency_detections"] += 1
     
-    def get_summary(self) -> Dict[str, Any]:
-        """Get metrics summary as dictionary"""
+    def get_summary(self, format: str = "dict") -> Dict[str, Any] | str:
+        """Get metrics summary in specified format
+        
+        Args:
+            format: 'dict' for dictionary, 'text' for formatted string, 'json' for JSON string
+        
+        Returns:
+            Metrics summary in requested format
+        """
         m = self.metrics
         success_rate = (m["successful_queries"] / m["total_queries"] * 100 
                        if m["total_queries"] > 0 else 0)
         
-        return {
+        summary_dict = {
             "total_queries": m["total_queries"],
             "successful_queries": m["successful_queries"],
             "failed_queries": m["failed_queries"],
@@ -57,31 +64,20 @@ class PerformanceMetrics:
             "average_confidence_score": m["avg_confidence"],
             "emergency_detections": m["emergency_detections"]
         }
-    
-    def get_summary_text(self) -> str:
-        """Get formatted metrics summary as text"""
-        m = self.metrics
-        success_rate = (m["successful_queries"] / m["total_queries"] * 100 
-                       if m["total_queries"] > 0 else 0)
         
-        summary = f"""
-        Performance Metrics:
-        • Total Queries: {m['total_queries']}
-        • Success Rate: {success_rate:.1f}%
-        • Avg Response Time: {m['avg_response_time']:.2f}s
-        • Avg Confidence: {m['avg_confidence']:.2%}
-        • Emergencies Detected: {m['emergency_detections']}
-        • Failed Queries: {m['failed_queries']}
-        """
-        return summary.strip()
-    
-    def get_metrics_dict(self) -> Dict[str, Any]:
-        """Get metrics as dictionary"""
-        return self.metrics.copy()
-    
-    def to_json(self) -> str:
-        """Export metrics as JSON"""
-        return json.dumps(self.metrics, indent=2)
+        if format == "text":
+            return f"""
+Performance Metrics:
+• Total Queries: {m['total_queries']}
+• Success Rate: {success_rate:.1f}%
+• Avg Response Time: {m['avg_response_time']:.2f}s
+• Avg Confidence: {m['avg_confidence']:.2%}
+• Emergencies Detected: {m['emergency_detections']}
+• Failed Queries: {m['failed_queries']}""".strip()
+        elif format == "json":
+            return json.dumps(summary_dict, indent=2)
+        else:
+            return summary_dict
     
     def reset(self):
         """Reset all metrics to zero"""

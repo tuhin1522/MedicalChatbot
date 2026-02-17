@@ -102,3 +102,22 @@ class ResetPasswordRequest(SQLModel):
     """Schema for reset password request"""
     token: str
     new_password: str = Field(min_length=8)
+
+
+class ConversationSchema(SQLModel):
+    """Schema for conversation response"""
+    id: int
+    title: str
+    created_at: datetime
+
+
+class MessageSchema(SQLModel):
+    """Schema for message response"""
+    id: int
+    conversation_id: int
+    role: str
+    content: str
+    created_at: datetime
+    query_type: Optional[str] = None
+    elapsed_time: Optional[float] = None
+    docs_retrieved: Optional[int] = None

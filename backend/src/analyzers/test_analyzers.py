@@ -64,18 +64,18 @@ if __name__ == "__main__":
     
     print("✅ Recorded 4 queries (3 success, 1 failure, 1 emergency)\n")
     
-    # Get summary
-    summary = metrics.get_summary_text()
+    # Get summary as text
+    summary = metrics.get_summary("text")
     print("📊 Metrics Summary:")
     print(summary)
     
     # Test JSON export
     print("\n✅ JSON Export:")
-    json_metrics = metrics.to_json()
+    json_metrics = metrics.get_summary("json")
     print(f"   Exported {len(json_metrics)} characters")
     
     # Test metrics dict
-    metrics_dict = metrics.get_metrics_dict()
+    metrics_dict = metrics.get_summary()
     print(f"\n✅ Metrics Dictionary:")
     print(f"   Total Queries: {metrics_dict['total_queries']}")
     print(f"   Success Rate: {metrics_dict['successful_queries']}/{metrics_dict['total_queries']}")
@@ -85,6 +85,6 @@ if __name__ == "__main__":
     # Test reset
     metrics.reset()
     print(f"\n✅ Reset metrics:")
-    print(f"   Total Queries after reset: {metrics.get_metrics_dict()['total_queries']}")
+    print(f"   Total Queries after reset: {metrics.get_summary()['total_queries']}")
     
     print("\n🎉 All analyzer tests passed!")

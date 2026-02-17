@@ -26,20 +26,27 @@ class SourceDocument(BaseModel):
 class ChatResponse(BaseModel):
     """Response model for chat endpoint"""
     status: ResponseStatus = Field(..., description="Response status")
-    answer: str = Field(..., description="Chatbot's answer")
+    response: str = Field(..., description="Chatbot's response")
+    conversation_id: int = Field(..., description="Conversation ID")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Response metadata")
     sources: List[SourceDocument] = Field(default_factory=list, description="Source documents")
     confidence: Optional[str] = Field(None, description="Confidence level (high/medium/low)")
     confidence_score: Optional[float] = Field(None, ge=0.0, le=1.0, description="Confidence score (0-1)")
     response_time: Optional[float] = Field(None, description="Response time in seconds")
     timestamp: datetime = Field(default_factory=datetime.now, description="Response timestamp")
-    session_id: Optional[str] = Field(None, description="Session ID")
     disclaimer: Optional[str] = Field(None, description="Safety disclaimer (if applicable)")
     
     class Config:
         json_schema_extra = {
             "example": {
                 "status": "success",
-                "answer": "Diabetes symptoms include increased thirst, frequent urination, and fatigue.",
+                "response": "Diabetes symptoms include increased thirst, frequent urination, and fatigue.",
+                "conversation_id": 1,
+                "metadata": {
+                    "query_type": "medical_query",
+                    "elapsed_time": 1.23,
+                    "docs_retrieved": 5
+                },
                 "sources": [
                     {
                         "content": "Common symptoms of diabetes...",
@@ -50,8 +57,7 @@ class ChatResponse(BaseModel):
                 "confidence": "high",
                 "confidence_score": 0.85,
                 "response_time": 1.23,
-                "timestamp": "2026-02-15T10:30:00",
-                "session_id": "user_123456"
+                "timestamp": "2026-02-15T10:30:00"
             }
         }
 

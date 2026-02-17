@@ -249,7 +249,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       <SelectContent>
                         <SelectItem value="concise">Concise</SelectItem>
                         <SelectItem value="elaborative">Elaborative</SelectItem>
-                        <SelectItem value="creative">Creative</SelectItem>
+                        <SelectItem value="detailed">Detailed</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -264,7 +264,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 </Button>
               </div>
               <div className="absolute bottom-3 left-4 text-[11px] text-muted-foreground/60 flex items-center gap-2 pointer-events-none">
-                 <span className="flex items-center gap-1 hidden sm:flex"><kbd className="px-1 py-0.5 rounded bg-muted/50 border border-muted-foreground/20">Enter</kbd> to send</span>
+                 <span className="hidden sm:flex items-center gap-1"><kbd className="px-1 py-0.5 rounded bg-muted/50 border border-muted-foreground/20">Enter</kbd> to send</span>
               </div>
             </div>
           </div>

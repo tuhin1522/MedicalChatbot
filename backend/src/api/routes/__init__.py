@@ -7,10 +7,12 @@ from .health import router as health_router
 from .chat import router as chat_router
 from .admin import router as admin_router
 from .users import router as auth_router
+from .conversations import router as conversations_router
 
 __all__ = [
     "health_router",
     "chat_router",
     "admin_router",
     "auth_router",
+    "conversations_router"
 ]

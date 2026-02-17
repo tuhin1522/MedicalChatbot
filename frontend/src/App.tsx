@@ -1,12 +1,12 @@
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { ChatSidebar } from "./components/chat/ChatSidebar";
 import { ChatInterface } from "./components/chat/ChatInterface";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { api } from "./services/api";
 import type { Conversation } from "./services/api";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +23,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "./components/theme-provider";
 import { ModeToggle } from "./components/chat/ModeToggle";
 
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import VerifyEmail from './pages/VerifyEmail';
 import ResetPassword from './pages/ResetPassword';

@@ -9,12 +9,14 @@ from fastapi import Depends
 
 from ..core import config, logger, get_config
 from ..core.exceptions import ServiceInitializationError
-from ..validators import SafetyValidator, safety
-from ..analyzers import ResponseAnalyzer, PerformanceMetrics, analyzer
+from ..validators import SafetyValidator
+from ..analyzers import ResponseAnalyzer, PerformanceMetrics
 
 
 # Global instances for performance tracking
 _performance_metrics: Optional[PerformanceMetrics] = None
+_response_analyzer: Optional[ResponseAnalyzer] = None
+_safety_validator: Optional[SafetyValidator] = None
 _start_time: Optional[float] = None
 
 
@@ -64,7 +66,11 @@ def get_safety_validator() -> SafetyValidator:
     Returns:
         SafetyValidator: Validator for safety checks
     """
-    return safety
+    global _safety_validator
+    if _safety_validator is None:
+        _safety_validator = SafetyValidator()
+        logger.info("Safety validator initialized")
+    return _safety_validator
 
 
 def get_response_analyzer() -> ResponseAnalyzer:
@@ -74,7 +80,11 @@ def get_response_analyzer() -> ResponseAnalyzer:
     Returns:
         ResponseAnalyzer: Analyzer for response quality
     """
-    return analyzer
+    global _response_analyzer
+    if _response_analyzer is None:
+        _response_analyzer = ResponseAnalyzer()
+        logger.info("Response analyzer initialized")
+    return _response_analyzer
 
 
 def get_rag_service():

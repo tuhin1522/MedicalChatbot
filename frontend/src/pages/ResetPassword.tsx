@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { api } from "@/services/api";
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -30,22 +31,23 @@ export default function ResetPassword() {
         return;
     }
 
+    if (newPassword.length < 6) {
+        toast.error("Password must be at least 6 characters long");
+        return;
+    }
+
     setIsLoading(true);
     
     try {
-      const response = await fetch('http://localhost:8000/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, new_password: newPassword }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || 'Reset failed');
+      if (!token) {
+        throw new Error("Invalid reset token");
       }
 
-      toast.success("Password reset successfully. Please login.");
-      navigate('/');
+      const data = await api.resetPassword(token, newPassword);
+      toast.success(data.message || "Password reset successfully. Please login.");
+      
+      // Navigate to home after short delay
+      setTimeout(() => navigate('/'), 1500);
       
     } catch (err: any) {
       toast.error(err.message || "Failed to reset password");

@@ -32,7 +32,6 @@ class ChatbotConfig:
     # Database Configuration
     PERSIST_DIRECTORY: str = "db"
     VECTOR_STORE_PATH: str = "db"
-    DATA_DIRECTORY: str = "../data/"
     DATA_PATH: str = "data/"
     
     # Performance Configuration

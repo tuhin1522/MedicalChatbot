@@ -5,7 +5,7 @@ FastAPI application for the medical chatbot backend
 
 from fastapi import FastAPI
 
-from .routes import health_router, chat_router, admin_router, auth_router
+from .routes import health_router, chat_router, admin_router, auth_router, conversations_router
 from .middleware import setup_middleware
 from ..core import logger
 
@@ -36,6 +36,7 @@ def create_app() -> FastAPI:
     app.include_router(chat_router)
     app.include_router(admin_router)
     app.include_router(auth_router)
+    app.include_router(conversations_router)
     
     # Root endpoint
     @app.get("/", tags=["Root"])

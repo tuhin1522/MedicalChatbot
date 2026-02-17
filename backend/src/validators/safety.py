@@ -1,5 +1,5 @@
 import re
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 from ..core import config, logger
 
 class SafetyValidator:
@@ -36,16 +36,33 @@ class SafetyValidator:
         "Do NOT rely on this chatbot for emergency medical situations!"
     )
     
+    # Common greetings and conversational phrases
+    GREETINGS = [
+        'hi', 'hello', 'hey', 'yo', 'sup', 'greetings', 'good morning',
+        'good afternoon', 'good evening', 'howdy', 'hola', 'bonjour'
+    ]
+    
     @staticmethod
-    def validate_query(query: str) -> Dict[str, any]:
+    def validate_query(query: str) -> Dict[str, Any]:
         """
         Validate if query is safe and appropriate
         Returns: dict with validation results
         """
         query_lower = query.lower().strip()
         
-        # Check length
+        # Allow greetings and short conversational messages
         if len(query) < 3:
+            # Check if it's a greeting or common short message
+            if query_lower in SafetyValidator.GREETINGS or any(
+                greeting in query_lower for greeting in SafetyValidator.GREETINGS
+            ):
+                return {
+                    "is_valid": True,
+                    "is_greeting": True,
+                    "is_emergency": False,
+                    "is_harmful": False,
+                    "needs_disclaimer": False
+                }
             return {
                 "is_valid": False,
                 "reason": "Query too short. Please ask a complete question.",
@@ -119,25 +136,3 @@ class SafetyValidator:
             response += SafetyValidator.MEDICAL_DISCLAIMER
         
         return response
-
-# Initialize default validator instance
-safety = SafetyValidator()
-
-if __name__ == "__main__":
-    # Test validation
-    test_queries = [
-        "What is diabetes?",
-        "I have severe chest pain",
-        "x",  # Too short
-    ]
-
-    print("🛡️ Safety Validator initialized!\n")
-    print("Testing validation:")
-    for query in test_queries:
-        is_valid, error = safety.validate_query(query)
-        is_emergency = safety.detect_emergency(query)
-        print(f"  Query: '{query[:30]}...'")
-        print(f"  Valid: {is_valid}, Emergency: {is_emergency}")
-        if error:
-            print(f"  Error: {error[:50]}...")
-        print()

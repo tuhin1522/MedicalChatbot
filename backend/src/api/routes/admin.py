@@ -137,27 +137,19 @@ async def export_metrics(
     
     try:
         if format.lower() == "json":
-            metrics_dict = metrics.get_metrics_dict()
-            metrics_dict["exported_at"] = datetime.now().isoformat()
-            return metrics_dict
+            return {
+                **metrics.get_summary(),
+                "exported_at": datetime.now().isoformat()
+            }
             
         elif format.lower() == "txt":
-            summary = metrics.get_summary()
-            
-            # Format as text
+            text_content = metrics.get_summary("text")
             text_lines = [
                 "Performance Metrics Report",
                 "=" * 50,
                 f"Generated: {datetime.now().isoformat()}",
                 "",
-                f"Total Queries: {summary['total_queries']}",
-                f"Successful: {summary['successful_queries']}",
-                f"Failed: {summary['failed_queries']}",
-                f"Success Rate: {summary['success_rate']:.1f}%",
-                "",
-                f"Average Response Time: {summary['average_response_time']:.3f}s",
-                f"Average Confidence: {summary['average_confidence_score']:.2f}",
-                f"Emergencies Detected: {summary['emergency_detections']}",
+                text_content,
                 "",
                 "=" * 50
             ]

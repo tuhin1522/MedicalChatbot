@@ -10,24 +10,27 @@ from datetime import datetime
 
 class ChatRequest(BaseModel):
     """Request model for chat endpoint"""
-    query: str = Field(..., min_length=1, max_length=2000, description="User's medical query")
-    session_id: Optional[str] = Field(None, description="Session ID for conversation tracking")
+    message: str = Field(..., min_length=1, max_length=2000, description="User's message")
+    conversation_id: Optional[int] = Field(None, description="Conversation ID for continuing existing chat")
+    response_type: str = Field("elaborative", description="Response type (concise/elaborative/detailed)")
     
-    @validator('query')
-    def validate_query(cls, v):
-        """Validate and clean the query"""
+    @validator('message')
+    def validate_message(cls, v):
+        """Validate and clean the message"""
         v = v.strip()
         if not v:
-            raise ValueError("Query cannot be empty or whitespace only")
+            raise ValueError("Message cannot be empty or whitespace only")
         return v
     
     class Config:
         json_schema_extra = {
             "example": {
-                "query": "What are the symptoms of diabetes?",
-                "session_id": "user_123456"
+                "message": "What are the symptoms of diabetes?",
+                "conversation_id": 1,
+                "response_type": "elaborative"
             }
         }
+        populate_by_name = True
 
 
 class ResetRequest(BaseModel):

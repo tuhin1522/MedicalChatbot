@@ -75,7 +75,7 @@ export function ChatSidebar({
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Trash2
-                          className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-destructive pointer-events-auto hover:scale-110 transition-transform"
+                          className="w-4 h-4 opacity-0 group-hover:opacity-100 text-destructive pointer-events-auto hover:scale-110 transition-all"
                           onClick={(e) => e.stopPropagation()}
                         />
                       </AlertDialogTrigger>
